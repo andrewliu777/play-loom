@@ -37,6 +37,7 @@ export const seedDiagram: Diagram = {
       y: 1,
       width: 0.8,
       height: 0.65,
+      fontSize: "normal",
       rounded: true,
     },
     {
@@ -47,6 +48,7 @@ export const seedDiagram: Diagram = {
       y: 4.5,
       width: 0.8,
       height: 0.65,
+      fontSize: "normal",
       rounded: true,
     },
     { id: "row-i", type: "math-label", tex: "I", x: 1.45, y: 0.55, fontSize: "normal" },

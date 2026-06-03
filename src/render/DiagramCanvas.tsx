@@ -10,6 +10,7 @@ import {
   svgToGrid,
   svgToRawGrid,
 } from "../layout/coordinates";
+import { effectiveBoxSvgSize, estimateTexSvgSize } from "../model/boxMetrics";
 import type { Diagram, DiagramObject, GridSettings, Point } from "../model/types";
 import {
   makeBoxLabel,
@@ -246,16 +247,7 @@ function gridLineDraft(
 }
 
 function estimateTexWidth(tex: string, fontSize: "small" | "normal" | "large"): number {
-  if (tex.trim() === "\\bullet") {
-    return 18;
-  }
-
-  const scale = fontSize === "small" ? 0.86 : fontSize === "large" ? 1.18 : 1;
-  const commandAdjustedLength = tex
-    .replace(/\\[a-zA-Z]+/g, "xx")
-    .replace(/[{}_^]/g, "")
-    .length;
-  return Math.max(34, commandAdjustedLength * 8.5 * scale + 26);
+  return estimateTexSvgSize(tex, fontSize).width;
 }
 
 function adaptiveGridForDiagram(diagram: Diagram): GridSettings {
@@ -269,16 +261,16 @@ function adaptiveGridForDiagram(diagram: Diagram): GridSettings {
 
     if (object.type === "math-label") {
       x = object.x;
-      requiredWidth = estimateTexWidth(object.tex, object.fontSize) + 20;
+      requiredWidth = estimateTexWidth(object.tex, object.fontSize) + 18;
     } else if (object.type === "box-label") {
       x = object.x;
-      requiredWidth = object.width * base.spacing + 18;
+      requiredWidth = effectiveBoxSvgSize(object, base.spacing).width + 18;
     } else if (object.type === "ellipsis") {
       x = object.x;
       requiredWidth = 48;
     }
 
-    if (requiredWidth <= base.spacing) {
+    if (requiredWidth <= base.spacing * 1.42) {
       continue;
     }
 

@@ -650,6 +650,12 @@ textarea {
   pointer-events: all;
 }
 
+.hit-box {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: all;
+}
+
 .selection-circle,
 .selection-box,
 .selection-line,

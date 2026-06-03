@@ -1,5 +1,6 @@
 import katex from "katex";
 import { gridToSvg } from "../layout/coordinates";
+import { effectiveBoxSvgSize, estimateTexSvgSize, fontScale } from "../model/boxMetrics";
 import { DEFAULT_SHADE_OPACITY, tikzFillToCss } from "../model/shadeColors";
 import type { DiagramObject, GridSettings } from "../model/types";
 
@@ -11,16 +12,6 @@ type ObjectViewProps = {
   onPointerDown: (event: React.PointerEvent<SVGGElement>, object: DiagramObject) => void;
   onClick: (event: React.MouseEvent<SVGGElement>, object: DiagramObject) => void;
 };
-
-function mathScale(fontSize?: string): number {
-  if (fontSize === "small") {
-    return 0.86;
-  }
-  if (fontSize === "large") {
-    return 1.18;
-  }
-  return 1;
-}
 
 function renderMath(tex: string): string {
   try {
@@ -38,14 +29,6 @@ function renderMath(tex: string): string {
       output: "html",
     });
   }
-}
-
-function mathBoxSize(tex: string, fontSize?: string): { width: number; height: number } {
-  const scale = mathScale(fontSize);
-  return {
-    width: Math.max(46, Math.min(260, tex.length * 9 * scale + 30)),
-    height: Math.max(34, 36 * scale),
-  };
 }
 
 function tikzRadiusToSvg(value: string | undefined, spacing: number): number {
@@ -84,10 +67,10 @@ function MathForeignObject({
   tex: string;
   x: number;
   y: number;
-  fontSize?: string;
+  fontSize?: "small" | "normal" | "large";
   color?: string;
 }) {
-  const size = mathBoxSize(tex, fontSize);
+  const size = estimateTexSvgSize(tex, fontSize);
   return (
     <foreignObject
       className="math-foreign-object"
@@ -98,7 +81,7 @@ function MathForeignObject({
     >
       <div
         className="math-html"
-        style={{ color, transform: `scale(${mathScale(fontSize)})` }}
+        style={{ color, transform: `scale(${fontScale(fontSize)})` }}
         dangerouslySetInnerHTML={{ __html: renderMath(tex) }}
       />
     </foreignObject>
@@ -260,8 +243,9 @@ export function ObjectView({
   }
 
   if (object.type === "box-label") {
-    const width = object.width * grid.spacing;
-    const height = object.height * grid.spacing;
+    const { width, height } = effectiveBoxSvgSize(object, grid.spacing);
+    const borderVisible = object.showBorder !== false;
+    const borderWidth = object.borderWidth ?? 1;
     return (
       <g
         className={className}
@@ -275,8 +259,27 @@ export function ObjectView({
           width={width}
           height={height}
           rx={object.rounded ? 5 : 0}
+          style={{
+            fill: object.fill ? tikzFillToCss(object.fill) : "none",
+            fillOpacity: object.fill ? (object.fillOpacity ?? DEFAULT_SHADE_OPACITY) : 1,
+            stroke: borderVisible ? tikzFillToCss(object.borderColor ?? "#16181C") : "none",
+            strokeWidth: borderVisible ? borderWidth : 0,
+          }}
         />
-        <MathForeignObject tex={object.tex} x={x} y={y} color={object.color ? tikzFillToCss(object.color) : undefined} />
+        <MathForeignObject
+          tex={object.tex}
+          x={x}
+          y={y}
+          fontSize={object.fontSize}
+          color={object.color ? tikzFillToCss(object.color) : undefined}
+        />
+        <rect
+          className="hit-box"
+          x={x - width / 2}
+          y={y - height / 2}
+          width={width}
+          height={height}
+        />
         {selected ? (
           <rect
             className="selection-box"
@@ -302,7 +305,7 @@ export function ObjectView({
           tex={object.orientation === "horizontal" ? "\\cdots" : "\\vdots"}
           x={x}
           y={y}
-          fontSize="large"
+          fontSize={object.fontSize ?? "large"}
         />
         {selected ? <circle className="selection-circle" cx={x} cy={y} r={16} /> : null}
       </g>

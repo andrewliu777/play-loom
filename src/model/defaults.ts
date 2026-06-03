@@ -1,7 +1,7 @@
 import type { Diagram, GridSettings } from "./types";
 
 export const defaultGrid: GridSettings = {
-  spacing: 42,
+  spacing: 56,
   origin: { x: 64, y: 56 },
   snap: true,
   editingGridVisible: true,

@@ -410,7 +410,14 @@ export function makeBoxLabel(x: number, y: number): DiagramObject {
     y,
     width: 1.2,
     height: 0.75,
+    fontSize: "normal",
     rounded: true,
+    autoSize: true,
+    paddingX: 18,
+    paddingY: 10,
+    showBorder: true,
+    borderColor: "#16181C",
+    borderWidth: 1,
   };
 }
 

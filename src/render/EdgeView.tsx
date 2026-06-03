@@ -1,4 +1,5 @@
 import { objectCenter } from "../layout/coordinates";
+import { effectiveBoxSvgSize } from "../model/boxMetrics";
 import { tikzFillToCss } from "../model/shadeColors";
 import type {
   ArrowTipStyle,
@@ -31,7 +32,7 @@ export function objectClearance(object: DiagramObject, grid: GridSettings): numb
     case "dot-node":
       return object.radius + 5;
     case "box-label":
-      return (Math.max(object.width, object.height) * grid.spacing) / 2 + 5;
+      return Math.max(...Object.values(effectiveBoxSvgSize(object, grid.spacing))) / 2 + 5;
     case "ellipsis":
       return 16;
     case "shade-region":

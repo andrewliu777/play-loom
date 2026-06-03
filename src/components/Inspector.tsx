@@ -48,10 +48,12 @@ function ColorPanel({
   title = "Color",
   value,
   onChange,
+  clearLabel = "Default",
 }: {
   title?: string;
   value?: string;
   onChange: (value: string | undefined) => void;
+  clearLabel?: string;
 }) {
   const resolvedValue = value ?? "#16181C";
 
@@ -60,7 +62,7 @@ function ColorPanel({
       <div className="color-panel-heading">
         <span>{title}</span>
         <button type="button" onClick={() => onChange(undefined)}>
-          Default
+          {clearLabel}
         </button>
       </div>
       <div className="color-swatch-grid" aria-label={`${title} presets`}>
@@ -400,6 +402,24 @@ function ObjectInspector({
               onChange={(event) => onChange(object.id, { tex: event.target.value })}
             />
           </Field>
+          <Field label="Font size">
+            <select
+              value={object.fontSize}
+              onChange={(event) => onChange(object.id, { fontSize: event.target.value as FontSize })}
+            >
+              <option value="small">small</option>
+              <option value="normal">normal</option>
+              <option value="large">large</option>
+            </select>
+          </Field>
+          <label className="check-field">
+            <input
+              type="checkbox"
+              checked={object.autoSize !== false}
+              onChange={(event) => onChange(object.id, { autoSize: event.target.checked })}
+            />
+            <span>Auto-size to text</span>
+          </label>
           <div className="field-row">
             <Field label="Width">
               <input
@@ -418,6 +438,22 @@ function ObjectInspector({
               />
             </Field>
           </div>
+          <div className="field-row">
+            <Field label="x padding">
+              <input
+                type="number"
+                value={object.paddingX ?? 18}
+                onChange={(event) => onChange(object.id, { paddingX: toNumber(event.target.value) })}
+              />
+            </Field>
+            <Field label="y padding">
+              <input
+                type="number"
+                value={object.paddingY ?? 10}
+                onChange={(event) => onChange(object.id, { paddingY: toNumber(event.target.value) })}
+              />
+            </Field>
+          </div>
           <label className="check-field">
             <input
               type="checkbox"
@@ -427,9 +463,54 @@ function ObjectInspector({
             <span>Rounded box</span>
           </label>
           <ColorPanel
+            title="Text color"
             value={object.color}
             onChange={(color) => onChange(object.id, { color })}
           />
+          <ColorPanel
+            title="Background"
+            value={object.fill}
+            onChange={(fill) => onChange(object.id, { fill })}
+            clearLabel="None"
+          />
+          {object.fill ? (
+            <Field label={`Background opacity ${Math.round((object.fillOpacity ?? DEFAULT_SHADE_OPACITY) * 100)}%`}>
+              <input
+                type="range"
+                min="0.05"
+                max="1"
+                step="0.05"
+                value={object.fillOpacity ?? DEFAULT_SHADE_OPACITY}
+                onChange={(event) => onChange(object.id, { fillOpacity: toOpacity(event.target.value) })}
+              />
+            </Field>
+          ) : null}
+          <label className="check-field">
+            <input
+              type="checkbox"
+              checked={object.showBorder !== false}
+              onChange={(event) => onChange(object.id, { showBorder: event.target.checked })}
+            />
+            <span>Show border</span>
+          </label>
+          {object.showBorder !== false ? (
+            <>
+              <ColorPanel
+                title="Border color"
+                value={object.borderColor}
+                onChange={(borderColor) => onChange(object.id, { borderColor })}
+              />
+              <Field label="Border width">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  value={object.borderWidth ?? 1}
+                  onChange={(event) => onChange(object.id, { borderWidth: toNumber(event.target.value) })}
+                />
+              </Field>
+            </>
+          ) : null}
         </>
       ) : null}
 
@@ -586,19 +667,31 @@ function ObjectInspector({
       ) : null}
 
       {object.type === "ellipsis" ? (
-        <Field label="Orientation">
-          <select
-            value={object.orientation}
-            onChange={(event) =>
-              onChange(object.id, {
-                orientation: event.target.value as "horizontal" | "vertical",
-              })
-            }
-          >
-            <option value="horizontal">horizontal</option>
-            <option value="vertical">vertical</option>
-          </select>
-        </Field>
+        <>
+          <Field label="Orientation">
+            <select
+              value={object.orientation}
+              onChange={(event) =>
+                onChange(object.id, {
+                  orientation: event.target.value as "horizontal" | "vertical",
+                })
+              }
+            >
+              <option value="horizontal">horizontal</option>
+              <option value="vertical">vertical</option>
+            </select>
+          </Field>
+          <Field label="Font size">
+            <select
+              value={object.fontSize ?? "large"}
+              onChange={(event) => onChange(object.id, { fontSize: event.target.value as FontSize })}
+            >
+              <option value="small">small</option>
+              <option value="normal">normal</option>
+              <option value="large">large</option>
+            </select>
+          </Field>
+        </>
       ) : null}
     </div>
   );

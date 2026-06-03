@@ -9,6 +9,7 @@ import type {
   LoopSide,
   ShadeRegionObject,
 } from "../model/types";
+import { effectiveBoxGridSize } from "../model/boxMetrics";
 import { tikzColorValue, tikzFillOption } from "../model/shadeColors";
 
 type NodeMap = Map<string, string>;
@@ -181,10 +182,22 @@ function nodeLatex(object: DiagramObject, names: NodeMap, spacing: number): stri
     }
     case "dot-node":
       return `  \\node[circle,fill,inner sep=0pt,minimum size=${round(object.radius)}pt] (${name}) at ${coord(object.x, object.y)} {};`;
-    case "box-label":
-      return `  \\node[draw,${object.color ? `text=${tikzColorValue(object.color)},` : ""}${object.rounded ? "rounded corners=3pt," : ""}minimum width=${round(object.width)}cm,minimum height=${round(object.height)}cm] (${name}) at ${coord(object.x, object.y)} {$${object.tex}$};`;
+    case "box-label": {
+      const size = effectiveBoxGridSize(object, spacing);
+      const options = [
+        object.showBorder === false ? "draw=none" : `draw=${tikzColorValue(object.borderColor ?? "black")}`,
+        object.borderWidth !== undefined ? `line width=${round(object.borderWidth)}pt` : "",
+        object.fill ? tikzFillOption(object.fill) : "",
+        object.fill && object.fillOpacity !== undefined ? `fill opacity=${round(object.fillOpacity)}` : "",
+        object.color ? `text=${tikzColorValue(object.color)}` : "",
+        object.rounded ? "rounded corners=3pt" : "",
+        `minimum width=${round(size.width)}cm`,
+        `minimum height=${round(size.height)}cm`,
+      ].filter(Boolean);
+      return `  \\node[${options.join(",")}] (${name}) at ${coord(object.x, object.y)} ${mathContents(object.tex, object.fontSize)};`;
+    }
     case "ellipsis":
-      return `  \\node (${name}) at ${coord(object.x, object.y)} {$${object.orientation === "horizontal" ? "\\cdots" : "\\vdots"}$};`;
+      return `  \\node (${name}) at ${coord(object.x, object.y)} ${mathContents(object.orientation === "horizontal" ? "\\cdots" : "\\vdots", object.fontSize ?? "large")};`;
     case "grid-line":
     case "shade-region":
       return null;

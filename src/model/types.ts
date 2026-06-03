@@ -54,7 +54,16 @@ export interface BoxLabelObject extends BaseObject {
   width: number;
   height: number;
   rounded?: boolean;
+  fontSize: FontSize;
   color?: string;
+  autoSize?: boolean;
+  paddingX?: number;
+  paddingY?: number;
+  fill?: string;
+  fillOpacity?: number;
+  showBorder?: boolean;
+  borderColor?: string;
+  borderWidth?: number;
 }
 
 export interface GridLineObject extends BaseObject {
@@ -84,6 +93,7 @@ export interface EllipsisObject extends BaseObject {
   x: number;
   y: number;
   orientation: "horizontal" | "vertical";
+  fontSize?: FontSize;
 }
 
 export type DiagramObject =
