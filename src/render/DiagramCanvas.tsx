@@ -10,7 +10,7 @@ import {
   svgToGrid,
   svgToRawGrid,
 } from "../layout/coordinates";
-import { effectiveBoxSvgSize, estimateTexSvgSize } from "../model/boxMetrics";
+import { estimateTexSvgSize } from "../model/boxMetrics";
 import type { Diagram, DiagramObject, GridSettings, Point } from "../model/types";
 import {
   makeBoxLabel,
@@ -262,9 +262,6 @@ function adaptiveGridForDiagram(diagram: Diagram): GridSettings {
     if (object.type === "math-label") {
       x = object.x;
       requiredWidth = estimateTexWidth(object.tex, object.fontSize) + 18;
-    } else if (object.type === "box-label") {
-      x = object.x;
-      requiredWidth = effectiveBoxSvgSize(object, base.spacing).width + 18;
     } else if (object.type === "ellipsis") {
       x = object.x;
       requiredWidth = 48;
@@ -1073,6 +1070,11 @@ export function DiagramCanvas() {
           <input
             value={editingObject.tex}
             autoFocus
+            onFocus={(event) => {
+              if (editingObject.tex === "\\bullet") {
+                event.currentTarget.select();
+              }
+            }}
             onChange={(event) => handleTexChange(editingObject.id, event.target.value)}
             onBlur={stopEditingObject}
             onKeyDown={(event) => {
