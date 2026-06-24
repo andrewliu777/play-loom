@@ -5,10 +5,14 @@ import type {
   Edge,
   EdgeEndpointSymbol,
   EdgeStyle,
+  GridSettings,
   GridLineObject,
   LoopSide,
+  Point,
   ShadeRegionObject,
 } from "../model/types";
+import { adaptiveGridForDiagram } from "../layout/adaptiveGrid";
+import { gridToSvg } from "../layout/coordinates";
 import { effectiveBoxGridSize } from "../model/boxMetrics";
 import { tikzColorValue, tikzFillOption } from "../model/shadeColors";
 
@@ -38,8 +42,20 @@ function uniqueTikzNames(objects: DiagramObject[]): NodeMap {
   return map;
 }
 
-function coord(x: number, y: number): string {
-  return `(${round(x)},${round(-y)})`;
+function formatCoord(point: Point): string {
+  return `(${round(point.x)},${round(-point.y)})`;
+}
+
+function gridPointToTikz(point: Point, grid: GridSettings): Point {
+  const svg = gridToSvg(point, grid);
+  return {
+    x: (svg.x - grid.origin.x) / grid.spacing,
+    y: (svg.y - grid.origin.y) / grid.spacing,
+  };
+}
+
+function gridCoord(point: Point, grid: GridSettings): string {
+  return formatCoord(gridPointToTikz(point, grid));
 }
 
 function round(value: number): string {
@@ -167,7 +183,7 @@ function mathContents(tex: string, fontSize: "small" | "normal" | "large"): stri
   return `{$${tex}$}`;
 }
 
-function nodeLatex(object: DiagramObject, names: NodeMap, spacing: number): string | null {
+function nodeLatex(object: DiagramObject, names: NodeMap, grid: GridSettings): string | null {
   const name = names.get(object.id);
   if (!name) {
     return null;
@@ -175,15 +191,16 @@ function nodeLatex(object: DiagramObject, names: NodeMap, spacing: number): stri
 
   switch (object.type) {
     case "math-label": {
-      const x = object.x + (object.xOffset ?? 0) / spacing;
-      const y = object.y + (object.yOffset ?? 0) / spacing;
+      const point = gridPointToTikz({ x: object.x, y: object.y }, grid);
+      const x = point.x + (object.xOffset ?? 0) / grid.spacing;
+      const y = point.y + (object.yOffset ?? 0) / grid.spacing;
       const options = object.color ? `[text=${tikzColorValue(object.color)}] ` : "";
-      return `  \\node ${options}(${name}) at ${coord(x, y)} ${mathContents(object.tex, object.fontSize)};`;
+      return `  \\node ${options}(${name}) at ${formatCoord({ x, y })} ${mathContents(object.tex, object.fontSize)};`;
     }
     case "dot-node":
-      return `  \\node[circle,fill,inner sep=0pt,minimum size=${round(object.radius)}pt] (${name}) at ${coord(object.x, object.y)} {};`;
+      return `  \\node[circle,fill,inner sep=0pt,minimum size=${round(object.radius)}pt] (${name}) at ${gridCoord({ x: object.x, y: object.y }, grid)} {};`;
     case "box-label": {
-      const size = effectiveBoxGridSize(object, spacing);
+      const size = effectiveBoxGridSize(object, grid.spacing);
       const options = [
         object.showBorder === false ? "draw=none" : `draw=${tikzColorValue(object.borderColor ?? "black")}`,
         object.borderWidth !== undefined ? `line width=${round(object.borderWidth)}pt` : "",
@@ -194,36 +211,41 @@ function nodeLatex(object: DiagramObject, names: NodeMap, spacing: number): stri
         `minimum width=${round(size.width)}cm`,
         `minimum height=${round(size.height)}cm`,
       ].filter(Boolean);
-      return `  \\node[${options.join(",")}] (${name}) at ${coord(object.x, object.y)} ${mathContents(object.tex, object.fontSize)};`;
+      return `  \\node[${options.join(",")}] (${name}) at ${gridCoord({ x: object.x, y: object.y }, grid)} ${mathContents(object.tex, object.fontSize)};`;
     }
     case "ellipsis":
-      return `  \\node (${name}) at ${coord(object.x, object.y)} ${mathContents(object.orientation === "horizontal" ? "\\cdots" : "\\vdots", object.fontSize ?? "large")};`;
+      return `  \\node (${name}) at ${gridCoord({ x: object.x, y: object.y }, grid)} ${mathContents(object.orientation === "horizontal" ? "\\cdots" : "\\vdots", object.fontSize ?? "large")};`;
     case "grid-line":
     case "shade-region":
       return null;
   }
 }
 
-function gridLineLatex(object: GridLineObject): string {
+function gridLineLatex(object: GridLineObject, grid: GridSettings): string {
   const from =
     object.orientation === "horizontal"
-      ? coord(object.start, object.position)
-      : coord(object.position, object.start);
+      ? gridCoord({ x: object.start, y: object.position }, grid)
+      : gridCoord({ x: object.position, y: object.start }, grid);
   const to =
     object.orientation === "horizontal"
-      ? coord(object.end, object.position)
-      : coord(object.position, object.end);
+      ? gridCoord({ x: object.end, y: object.position }, grid)
+      : gridCoord({ x: object.position, y: object.end }, grid);
   return `  \\draw[${lineStyle(object)}] ${from} -- ${to};`;
 }
 
-function shadeLatex(object: ShadeRegionObject): string {
+function shadeLatex(object: ShadeRegionObject, grid: GridSettings): string {
+  const topLeft = gridPointToTikz({ x: object.x, y: object.y }, grid);
+  const bottomRight = {
+    x: topLeft.x + object.width,
+    y: topLeft.y + object.height,
+  };
   const options = [
     "shadebox",
     object.fill !== "gray!20" ? tikzFillOption(object.fill) : "",
     object.opacity !== undefined && object.opacity < 1 ? `fill opacity=${round(object.opacity)}` : "",
     object.roundedCorners ? `rounded corners=${object.roundedCorners}` : "",
   ].filter(Boolean);
-  return `  \\filldraw[${options.join(",")}] ${coord(object.x, object.y)} rectangle ${coord(object.x + object.width, object.y + object.height)};`;
+  return `  \\filldraw[${options.join(",")}] ${formatCoord(topLeft)} rectangle ${formatCoord(bottomRight)};`;
 }
 
 function edgeLatex(edge: Edge, names: NodeMap): string | null {
@@ -247,6 +269,7 @@ function edgeLatex(edge: Edge, names: NodeMap): string | null {
 }
 
 export function exportTikz(diagram: Diagram): string {
+  const grid = adaptiveGridForDiagram(diagram);
   const names = uniqueTikzNames(diagram.objects);
   const shades = diagram.objects.filter(
     (object): object is ShadeRegionObject => object.type === "shade-region",
@@ -255,7 +278,7 @@ export function exportTikz(diagram: Diagram): string {
     (object): object is GridLineObject => object.type === "grid-line",
   );
   const nodes = diagram.objects
-    .map((object) => nodeLatex(object, names, diagram.grid.spacing))
+    .map((object) => nodeLatex(object, names, grid))
     .filter((line): line is string => Boolean(line));
   const edges = diagram.edges
     .map((edge) => edgeLatex(edge, names))
@@ -301,9 +324,9 @@ export function exportTikz(diagram: Diagram): string {
   }
 ]
 \begin{pgfonlayer}{background}
-${shades.map(shadeLatex).join("\n")}
+${shades.map((shade) => shadeLatex(shade, grid)).join("\n")}
 \end{pgfonlayer}
-${lines.map(gridLineLatex).join("\n")}
+${lines.map((line) => gridLineLatex(line, grid)).join("\n")}
 ${nodes.join("\n")}
 ${edges.join("\n")}
 \end{tikzpicture}
