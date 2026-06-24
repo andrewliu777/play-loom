@@ -310,6 +310,32 @@ export function DiagramCanvas() {
     return nearest;
   }
 
+  function objectInCell(rawPoint: Point, exceptId?: string): DiagramObject | null {
+    let nearest: DiagramObject | null = null;
+    let nearestDistance = Infinity;
+    const cellX = Math.floor(rawPoint.x);
+    const cellY = Math.floor(rawPoint.y);
+
+    for (const object of diagram.objects) {
+      if (object.id === exceptId || !canConnect(object)) {
+        continue;
+      }
+
+      const point = objectGridPoint(object);
+      if (!point || Math.floor(point.x) !== cellX || Math.floor(point.y) !== cellY) {
+        continue;
+      }
+
+      const distance = gridDistance(rawPoint, point, renderGrid);
+      if (distance < nearestDistance) {
+        nearest = object;
+        nearestDistance = distance;
+      }
+    }
+
+    return nearest;
+  }
+
   function isObjectSelected(id: string): boolean {
     return (
       (selection?.kind === "object" && selection.id === id) ||
@@ -507,14 +533,16 @@ export function DiagramCanvas() {
         const ids = objectIdsInRect(rect);
         selectObjects(event.shiftKey ? Array.from(new Set([...selectedObjectIds(), ...ids])) : ids);
         setPendingVertex(null);
-      } else if (!canvasGesture.moved && isNearCellCenter(rawPoint, renderGrid)) {
-        const existing = objectAt(rawPoint);
+      } else if (!canvasGesture.moved) {
+        const existing = objectInCell(rawPoint) ?? objectAt(rawPoint);
         if (existing?.type === "math-label") {
+          setPendingVertex(null);
           checkpoint();
           startEditingObject(existing.id);
         } else if (existing) {
+          setPendingVertex(null);
           selectObject(existing.id);
-        } else {
+        } else if (isNearCellCenter(rawPoint, renderGrid)) {
           const center = nearestCellCenter(rawPoint);
           if (
             pendingVertex &&
@@ -529,10 +557,10 @@ export function DiagramCanvas() {
             clearSelection();
             setPendingVertex(center);
           }
+        } else {
+          clearSelection();
+          setPendingVertex(null);
         }
-      } else if (!canvasGesture.moved) {
-        clearSelection();
-        setPendingVertex(null);
       }
 
       setCanvasGesture(null);
@@ -685,9 +713,6 @@ export function DiagramCanvas() {
       targetId: target?.id ?? null,
     };
   })();
-  const pendingVertexPoint = pendingVertex
-    ? gridToSvg({ x: pendingVertex.x, y: pendingVertex.y }, renderGrid)
-    : null;
   const pendingVertexCell = pendingVertex
     ? {
         start: gridToSvg(
@@ -989,18 +1014,15 @@ export function DiagramCanvas() {
         </g>
 
         <g className="object-layer">
-          {pendingVertexPoint && pendingVertexCell ? (
+          {pendingVertexCell ? (
             <g className="pending-vertex" aria-label="Add vertex preview">
               <rect
+                className="selection-box pending-vertex-cell"
                 x={pendingVertexCell.start.x}
                 y={pendingVertexCell.start.y}
                 width={pendingVertexCell.end.x - pendingVertexCell.start.x}
                 height={pendingVertexCell.end.y - pendingVertexCell.start.y}
-                rx={8}
               />
-              <text x={pendingVertexPoint.x} y={pendingVertexPoint.y}>
-                add vertex
-              </text>
             </g>
           ) : null}
           {diagram.objects

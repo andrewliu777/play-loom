@@ -104,6 +104,18 @@ function shiftedLine(
   };
 }
 
+function gridCellRect(point: { x: number; y: number }, grid: GridSettings) {
+  const start = gridToSvg({ x: Math.floor(point.x), y: Math.floor(point.y) }, grid);
+  const end = gridToSvg({ x: Math.floor(point.x) + 1, y: Math.floor(point.y) + 1 }, grid);
+
+  return {
+    x: start.x,
+    y: start.y,
+    width: end.x - start.x,
+    height: end.y - start.y,
+  };
+}
+
 export function ObjectView({
   object,
   grid,
@@ -295,6 +307,8 @@ export function ObjectView({
   }
 
   if (object.type === "ellipsis") {
+    const selectionCell = gridCellRect(object, grid);
+
     return (
       <g
         className={className}
@@ -307,10 +321,12 @@ export function ObjectView({
           y={y}
           fontSize={object.fontSize ?? "large"}
         />
-        {selected ? <circle className="selection-circle" cx={x} cy={y} r={16} /> : null}
+        {selected ? <rect className="selection-box" {...selectionCell} /> : null}
       </g>
     );
   }
+
+  const selectionCell = gridCellRect(object, grid);
 
   return (
     <g
@@ -326,7 +342,7 @@ export function ObjectView({
         color={object.color ? tikzFillToCss(object.color) : undefined}
       />
       <circle className="hit-circle" cx={x} cy={y} r={18} />
-      {selected ? <circle className="selection-circle" cx={x} cy={y} r={18} /> : null}
+      {selected ? <rect className="selection-box" {...selectionCell} /> : null}
     </g>
   );
 }
